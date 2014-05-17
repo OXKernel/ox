@@ -1,0 +1,4 @@
+
+To run and boot from qemu :=
+
+qemu -fda vmox.img -cpu pentium

@@ -1,0 +1,531 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Copyright (C) Roger George Doss. All Rights Reserved.
+;
+; @notes:
+;   Portions derived from John S. Fine's boot loader
+;   namely read_sectors and gdt.inc.DEBUG and that code was public
+;   domain. See http://geezer.osdevbrasil.net/johnfine/index.htm.
+;   Additional code for loading ELF executables (see handleelf) was
+;   based on Gareth Owen's GazOS boot loader which is
+;   provided under GPLv2. See http://gazos.sourceforge.net/
+;   
+;   This loader is provided under the terms and conditions
+;   of the GPL license.
+;
+;   This file contains DEBUG statements which were used
+;   to debug the loader by printing out register contents
+;   in hex. There was a significant bug in memcopy
+;   which was due to using the cx register for the loop
+;   directive when the text region to be loaded was
+;   greater than 16 bits. A correction was made to the code
+;   to address this issue.
+;
+;   This file was used to debug the boot loader
+;   in combination with readelf -e vmox to see
+;   what the ELF sections are and how they are processed
+;   by the ELF loader written in assembler and contained
+;   herein.
+;
+;   Additionally, this code prints out the kernel_start
+;   address which should match the nm vmox | grep _start
+;   address which should match the e_entry in the ELF header.
+;   We print out the contents of the four bytes at this
+;   address for debugging purposes.
+;
+;   Lastly, we also support executing a flat binary
+;   in this file if need be. However, flat binary
+;   formats do not have a .bss segment.
+;
+;   To make a test flat binary kernel, run
+;   make test_bin_kernel.
+;
+;   Roger G. Doss, PhD
+;   March 28, 2013.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; @module
+;	s2.s
+; @description
+;	x86 boot loader
+;	(stage 2)
+; @author
+;	Roger George Doss
+;
+; @notes:
+;   asm_hlt
+;
+%macro asm_hlt 0
+    .loop jmp .loop
+    %endmacro
+
+%macro print_halt_msg 0
+    mov eax,0xB8000
+    mov byte [eax],'H'
+    inc eax
+    mov byte [eax],0x7
+    inc eax
+    mov byte [eax],'A'
+    inc eax
+    mov byte [eax],0x7
+    inc eax
+    mov byte [eax],'L'
+    inc eax
+    mov byte [eax],0x7
+    inc eax
+    mov byte [eax],'T'
+    inc eax
+    mov byte [eax],0x7
+    inc eax
+    %endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;		Includes.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+%include "include/boot.inc"
+%include "include/debug.inc"
+%include "include/exec.inc"
+%include "include/gdt.inc"
+%include "include/msg.inc"
+%include "include/read_tracks.inc"
+%include "include/clear_display.inc"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;		Defines.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+%define _K_LEN		 400 ; 1024   ; 0x9000 ; 512kb == 0x90000 / 0x10
+%define _K_BASE 	0x14000	; address where kernel loaded 0x14000
+                            ; 81920 = 16 * 1024 (size of loaders) + 0x10000
+                            ; segment (segments are times 16)
+                            ; we have _K_LOAD_SEG * 0x10
+%define _K_LOAD_SEG	0x1000	; segment where kernel loaded
+
+%define _K_END_SEG	_K_LOAD_SEG + _K_LEN
+
+%define _S1_BASE	0x7C00	; stage 1 base address
+
+%define _S2_CURR_SECT	0x1	; chs == lba 0x21 == 33
+%define _S2_CURR_HEAD	0x0
+%define _S2_CURR_TRACK	0x0
+%define _S2_NR_SECT	0x12	; 18 sectors per track
+%define _S2_NR_HEAD 0x2     ; 2 heads
+
+[BITS 16]
+[ORG 0x600]
+jmp start
+nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 			Data section.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+_OX_MSG			; messages
+_ENTRY_MSG
+_NEW_LINE
+
+boot_drive dw 0		; drive we were loaded from
+
+			; nr_bytes dw 512
+			; sectors dd 2880; (1.44 meg)
+nr_sections dw	0	; number of ELF sections in kernel executable
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 			Start of Stage 2 loader.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+start:
+
+; get boot disk information from stage 1 loader
+xor ax,ax
+mov ds,ax
+mov ax,[_S1_BASE + 0x1FC]
+mov [boot_drive],ax
+
+; start the second stage loader proper
+cli
+enable_a20
+enable_pmode
+enable_rmode
+sti
+
+xor ax,ax
+mov ds,ax
+
+; we are ready to load in the kernel
+mov si,OX_MSG
+call bprint
+
+; read kernel from disk
+mov bx, _K_LOAD_SEG
+mov es, bx  ; segment where kernel is to be loaded
+mov eax, 1  ; LBA of where to start (skipping s1 first 512 bytes)
+mov ecx, _K_LEN ; Size of kernel in sectors of 512 bytes each
+mov di, 1   ; one sector at a time
+
+load_loop:
+    call read_sectors
+    inc eax
+    mov bx, es
+    add bx, 32
+    mov es, bx
+    ; Print out the counter of how many sectors we are reading.
+    ;print_reg ecx ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+    loop load_loop
+
+; Print out memory segment
+;print_reg ebx ; DEBUG
+;pusha ; DEBUG
+;mov si, NEW_LINE ; DEBUG
+;call bprint ; DEBUG
+;popa ; DEBUG
+
+call turn_off_floppy
+
+; Determine if the file is ELF,
+; if it is, exec the ELF file.
+; Otherwise setup our kernel_start
+; to be the agreed upon entry in start.s
+; based on the address of _start.
+; (see nm vmox.exe | grep _start)
+mov edx, _K_BASE
+is_elf edx
+
+cmp eax,0
+jne handleelf
+; Handle flat binary.
+mov dword [kernel_start], 0x33924
+jmp loadkernel
+
+handleelf:
+        mov bx, 0x0
+        mov ds, bx
+        mov bx, 0x0
+        mov es, bx
+        mov edx, _K_BASE
+        ; convert ELF into flat binary so it can be executed
+        cmp dword [edx],464c457fh  ; The ELF signature is \07fELF
+        jne ldr_ELF_err            ; Ugh... not an ELF file !!!
+        cmp word [edx+4],101h    ; It should be statically linked etc.
+        jne ldr_ELF_err
+	    cmp byte [edx+6],1
+        jne ldr_ELF_err
+
+jmp short skip_err_handler
+	ldr_ELF_err:
+	
+	mov ax, 'E'+0x0E00
+        mov bx, 7
+        int 10h
+	mov al, 'L'
+	int 10h
+	mov al, 'F'
+	int 10h
+
+	cli
+	hlt
+	skip_err_handler:
+
+	mov eax, [edx+18h]
+	mov [kernel_start], eax
+
+        xor ecx,ecx                     ; Get the number of sections in cx
+        mov cx,[edx+2ch]
+
+        print_reg ecx ; DEBUG
+        mov si, NEW_LINE ; DEBUG
+        call bprint ; DEBUG
+
+sectionloop:
+        dec cx                          ; Next section
+        push cx                         ; Save cx on the stack while we load
+                                        ; the section into memory
+
+        xor edx,edx
+        mov esi,_K_BASE
+        ; print_reg edx ; DEBUG
+        xor eax,eax
+        mov ax,[esi+2ah]               ; Get the program header entry size
+        ; mov eax, 0x20 ; the phentsize should be 0x20
+        ;print_reg eax ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        mul cx                          ; Calculate the offset from the start
+                                        ; of the program header table
+        mov edx,_K_BASE
+        xor ebx,ebx
+        mov ebx,[edx+1ch]               ; Get the PHT offset in ebx
+        ;print_reg ebx ; DEBUG ; this value is 34
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        add ebx,eax                     ; Add it to our PHT entry offset
+        ;print_reg ebx ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        ; print_reg edx ; DEBUG
+        add ebx,edx                     ; Calculate the address of the entry
+
+        ; DEBUG - Print out the value of ebx
+        ;print_reg ebx ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        ;print_reg ebx ; DEBUG
+        ;xor eax,eax ; DEBUG
+        ;mov ax, [ebx] ; DEBUG -- Looks like we are getting the right value
+        ;print_reg eax   ; DEBUG -- There are three sections to load.
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        cmp dword [ebx],1               ; Does this section have to be
+                                        ; loaded into memory ?
+        jne nextsect                    ; No, next section
+
+
+        mov dword ecx,[ebx+4h]           ; Get the offset of the segment in
+                                        ; the ELF file
+
+        ; print_reg ecx ; DEBUG -- Looks we do enter here three times.
+        mov dword ebp,[ebx+10h]          ; Get the size of the segment in the
+                                        ; ELF file
+
+        mov dword edi,[ebx+8h]           ; Get the memory address of the sect.
+        mov dword eax,[ebx+14h]          ; Get the size of the section in
+        mov ebx,eax                     ; the memory into ebx
+
+; ds:dx  = Address of ASCIIZ filename
+; es:edi = Where in memory to put it
+; ecx    = Offset in file to start reading (bytes)
+; ebp    = Length of segment to read (bytes)
+;
+; Returns:
+; eax    = Length of file that was loaded
+; eax    = 0 if an error occured
+
+    ; Print destination address - in readelf -e this is VirtAddr
+    ;print_reg edi ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+
+    ; Print size of bytes to be copied - in readelf -e this is MemSiz
+    ;print_reg ebx ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+
+	push ebp
+	pusha
+	mov esi, edx
+	add esi, ecx
+
+    ; Print source string - in readelf -e this is Offset + _K_BASE
+    ;print_reg esi ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+
+	mov ecx, ebp
+	call memcopy
+	popa
+	pop eax
+
+        sub ebx,eax                     ; This amount needs to be zeroed
+        jz nextsect                     ; It's ok, next section
+
+        ; Print amount to be zeroed out MemSiz - FileSiz
+        ;print_reg ebx ; DEBUG
+        ;pusha ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        ;popa ; DEBUG
+
+        add edi,eax                     ; Zero the memory from this address
+
+        ; Print out destination to be zeroed out PhysAddr + FileSiz
+        ;print_reg edi ; DEBUG
+        ;pusha ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        ;popa ; DEBUG
+
+        xor eax,eax ; was xor ax,ax     ; edi is an absolute address
+        mov ecx,ebx
+        call zero_memblock              ; Zero the rest of the section
+
+nextsect:
+        pop cx                          ; Restore our section count
+        or cx,cx                        ; Was this the last one ?
+        ; DEBUG
+	jnz sectionloop
+
+loadkernel:
+
+mov si, ENTRY_MSG
+call bprint
+
+mov eax, [kernel_start]
+;mov eax, 0x100000
+;mov eax, 0x00113b08
+print_reg eax
+
+mov si, NEW_LINE
+call bprint
+
+mov ebx, [eax]
+print_reg ebx
+
+mov si, NEW_LINE
+call bprint
+movzx ebx, word [nr_sections]
+print_reg ebx
+
+; clear display for the kernel
+;clear_display
+
+cli
+enable_pmode
+jmp dword (CODE-GDT):protected_mode
+protected_mode:
+[BITS 32]
+	push dword 2
+	popfd
+	cli				; disable interrupts
+		mov ax,DATA-GDT	; set up stack
+		mov ss,ax
+		mov esp,0x400000
+	sti				; enable interrupts
+	mov eax,[kernel_start]
+	call eax
+    cmp eax,13
+    jne .halt
+    print_halt_msg
+.halt:
+    asm_hlt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;		Utility functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+%include "lib/turn_off_floppy.s"
+%include "lib/memmove.s"
+%include "lib/memzero.s"
+%include "lib/bprint.s"
+%include "lib/hprint.s"
+%include "lib/track_read.s"
+%include "lib/getkey.s"
+%include "lib/reboot.s"
+%include "lib/handle_err.s"
+%include "lib/read_sectors.s"
+
+; zero_memblock:  Fills the specified memory block with zeros (0x0)
+;
+; Takes parameters:
+; ax    = segment/selector of memory to be cleared
+; edi   = offset of memory to be cleared
+; ecx   = number of bytes to clear
+;
+; Returns:
+; nothing
+
+zero_memblock:
+        push eax                ; Save the registers
+        push edi
+        push ecx
+        push es
+        mov es,ax
+        xor eax,eax             ; Fill the memory with zeros (0x0)
+        cld                     ; Clear the direction flag; rep increments di
+        a32 rep stosb           ; Fill the memory (one byte at a time)
+                                ; a32 prefix allows use of 32bit ecx register
+        pop es                  ; Restore the registers
+        pop ecx
+        pop edi
+        pop eax
+        ret                     ; Return to the main program
+
+; Parameters
+; DS:ESI = Source
+; DS:EDI = Destination
+; CX = length
+memcopy:
+	pusha
+    ; Print length - readelf -e PhysAddr
+    ;print_reg edi ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+
+    ; Print length - readelf -e FileSiz
+    ;print_reg ecx ; DEBUG
+    ;pusha ; DEBUG
+    ;mov si, NEW_LINE ; DEBUG
+    ;call bprint ; DEBUG
+    ;popa ; DEBUG
+    xor edx,edx
+memcopy_loop:
+    cmp ecx, 0x0
+    je .done
+	mov al, [esi]
+    cmp edx,0x0
+    jne .ok
+        ;mov edx, [esi] ; DEBUG Read first four bytes
+        ;print_reg edx ; DEBUG
+        ;pusha ; DEBUG
+        ;mov si, NEW_LINE ; DEBUG
+        ;call bprint ; DEBUG
+        ;popa ; DEBUG
+        mov edx, 0x1
+.ok: ; DEBUG
+	mov [edi], al
+    cmp edi,[kernel_start]
+    jne .pass ; RGD - This is the problem, nothing is written to kernel_start
+              ;       in the event of a bad executable.
+              ;       Research why, we have readelf -e vmox
+              ;       and we know where in memory the targets are
+              ;       see why we don't put anything into kernel_start.
+        ; mov edx,[edi] ; DEBUG Print what is moved into kernel start
+        ; print_reg edx ; DEBUG
+        ; pusha ; DEBUG
+        ; mov si, NEW_LINE ; DEBUG
+        ; call bprint ; DEBUG
+        ; popa ; DEBUG
+        ; print_halt_msg ; DEBUG
+        ; asm_hlt ; DEBUG
+.pass:
+	inc edi
+	inc esi
+    cmp ecx,0
+    je .done
+    dec ecx
+    jmp memcopy_loop
+.done:
+	popa
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;		GDT and kernel entry.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+__GDT__:
+dw GDT_LENGTH
+dd GDT
+GDT:
+NULL desc 0,0,0
+CODE desc 0,0xFFFFF,D_CODE + D_READ  + D_BIG + D_BIG_LIM
+DATA desc 0,0xFFFFF,D_DATA + D_WRITE + D_BIG + D_BIG_LIM
+GDT_LENGTH equ $ - __GDT__ - 1
+
+;
+; start of kernel
+;
+kernel_start dd 0		; entry point for loaded kernel
+times 16382-($-$$) db 0
+dw 0xAA55			; signature at 0xFFE
+
+;
+; EOF
+;

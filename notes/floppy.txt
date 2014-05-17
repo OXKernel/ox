@@ -1,0 +1,2 @@
+mount -t vfat /dev/sdb /mnt/floppy/
+dd if=./vmox.boot of=/dev/sdb bs=512;

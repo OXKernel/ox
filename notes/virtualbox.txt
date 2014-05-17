@@ -1,0 +1,80 @@
+
+If you don't want to test with Bochs,
+you can use VirtualBox.  Personally, I think
+VirtualBox is more accurate.
+
+First, install VirtualBox on Linux (or your target
+platform) from here :=
+
+https://www.virtualbox.org/wiki/Linux_Downloads
+
+You should select the proper install image for
+your Linux distribution and hardware. In my case, this is Fedora 16 "Verne"
+(see /etc/issue for a description of which Linux you are running).
+And its running on a 64 bit box so I needed to get the AMD64
+version.
+
+You need to first install the linux kernel development sources
+(for example, package kernel-devel*.fc16 for Fedora 16)
+as you need to compile VirtualBox kernel module before running.
+Do this first, and then as root, run :=
+
+rpm -i VirtualBox*.rpm
+
+Once VirtualBox is installed, you should add your user to the vboxusers
+group to allow VirtualBox to use USB devices. Although, OX kernel
+currently does not have USB support. To do this, run :=
+
+usermod -G vboxuser username
+
+NOTE: If you install the VirtualBox rpm before the kernel development
+package, you will need to install the kernel development package
+after words, and run :=
+
+/etc/init.d/vboxdrv setup
+
+as root before actually using VirtualBox.
+
+Create a Virtual Machine for OX kernel, my configuration
+is set to Other OS/Unknown with 256 meg ram and 256 meg disk.
+
+Once this is done, see here how to boot
+from floppy using VirtualBox :=
+
+http://www.ehow.com/how_8456703_do-floppy-disc-image-virtualbox.html;
+
+This allows VirtualBox to boot from a floppy disk boot image.
+
+From the ehow website :=
+
+~~~~
+a) Select a virtual machine by clicking its name in the VirtualBox window.
+b) Click the "machine" menu at the top of the VirtualBox window,
+   and click "settings".
+c) Click the "Storage" category in the settings window.
+d) Right click in the storage tree pane (or select the
+   right most plus button on the pane) and click
+   "Add Floppy Controller".
+e) Right click the Floppy Controller device and click
+   "Add Floppy Device"
+f) Click "Choose Disk" button in the prompt window that appears.
+g) Navigate to the floppy disk image file on your computer
+   and double click it.
+~~~~
+
+This should allow you to boot the image. In this case,
+you should have it point to vmox.img file which is the artifact
+created after the top-leve make file succeeds. vmox.img is a
+1.44 Meg floppy image generated after compiling the boot loader
+and kernel into an executable image. If all goes well, VirtualBox
+should boot the kernel.
+
+~~~~
+To update Virtual Box :=
+
+rpm -ivh --replacefiles VirtualBox-4.2-4.2.12_84980_fedora16-1.x86_64.rpm
+
+General RPM notes :=
+
+http://www.centos.org/docs/5/html/Deployment_Guide-en-US/s1-rpm-using.html
+

@@ -1,0 +1,43 @@
+
+[1] Testing exec/fork will be the hardest,
+    however, we can write the code inside the kernel 
+    and compile the test executable with -fpic
+    as in := (/home/doss/src/os/src/elf)
+
+    gcc -c -static -nostdlib -fpic code.c
+    ld -elf_i386 test5.o -o code.exe -static
+
+    Then use our code to C hex converter from ObjectLock
+    to convert the code into a C array.
+
+    Then we can fork a process and then
+    run the exec code on it inside the kernel.
+
+    This avoids us having to do the following :=
+
+    Use the fs codes user level testing to write
+    a file on disk. Inside this file, we can load
+    the code.exe using OX file system.
+    Then take this file and concatenate
+    it behind the kernel and load it using the kernel
+    by utilizing a floppy disk driver to take the file
+    and place it on the hard drive where the kernel
+    version of OX file system can read it.
+    Incidently, this is how we can build an install program.
+    So keep the OX file system user code in good working order.
+
+[2] Testing OX file system inside the kernel is a matter
+    of testing the pio code inside the kernel. We should be
+    able to write a test driver to run in the kernel and test it out.
+    We may need to add a floppy driver to the kernel to be
+    able to read/write the floppy drive to perhaps copy the
+    kernel and a file system onto the hard drive.
+
+[3] Testing the memory allocator is a matter of running the
+    code and testing the init (see if we report all memory
+    on the machine) and testing the page allocation/free
+    and then the malloc/free code. We can write a test driver
+    here as well.
+
+[4] Test device drivers for PIT, i8259 and keyboard.
+    This should be done first.

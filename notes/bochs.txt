@@ -1,0 +1,47 @@
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[1] To make a bochs flat binary boot image, run
+the following command on Linux :=
+
+First, compute sectors (for 1.44 Meg floppy drive) :=
+
+Sectors = Cylinders * Heads * SectorsPerTrack
+
+Then, use the dd command to create your file:
+
+dd if=./vmox.boot of=./vmox.img bs=512 count=2880
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[2] To boot using bochs, issue the following command :=
+
+bochs -q 'boot:a' 'floppya: 1_44=vmox.img, status=inserted'
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NOTES:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Floppy drive sectors count comes from the following calculation :=
+
+Each side has 80 tracks
+Each track has 18 sectors
+Each sector holds 512 bytes (0.5 KB)
+So each floppy disk holds 2880 sectors (2 * 80 * 18), which total to 1440 KB. 
+
+Referenced from :=
+http://wiki.answers.com/Q/How_many_sectors_are_there_in_a_3_12_inch_high-density_floppy_disk
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Disk image notes for bochs are from :=
+http://bochs.sourceforge.net/doc/docbook/user/diskimagehowto.html
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running bochs with a floppy disk image is from :=
+http://bochs.sourceforge.net/doc/docbook/user/using-bochs.html
+And from bochs man page.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Place configuration file .bochsrc in the directory where bochs
+is running for adding additional directives. For example :=
+
+magic_break: enabled=1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+

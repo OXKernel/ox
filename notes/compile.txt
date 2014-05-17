@@ -1,0 +1,67 @@
+*Actually, see the top-level Makefile for the
+ order to build*
+I think we need to add another link to create a boot directory
+from the lower level platform/i386 directory.
+
+*Just get the asm the next time we work on this.*
+
+These are the Makefiles :=
+
+TODO :=
+Run top-level make to build vmox then the boot to build vmox.boot.
+
+Then, we have to build the vmox kernel first, then
+do the boot build, this will create the final kernel image.
+We may want to try to run the top-level make at this point...
+
+o ./platform/i386/boot/Makefile
+
+platform
+    boot
+    drivers
+
+DONE:
+mm
+libc/std
+libc/syscall
+libk
+init
+fs
+kernel/syscall
+kernel
+./platform/i386/arch/asm_core/Makefile
+./platform/i386/arch/Makefile
+./platform/i386/drivers/src/Makefile
+
+NOT NEEDED:
+./platform/i386/drivers/src/block/pio/tests/Makefile
+./platform/i386/boot/scripts/tools/Makefile
+
+**To compile process.h, we now need all this: **
+
+#include <ox/fs.h>
+#include <ox/fs/fs_syscalls.h>
+#include <ox/fs/compat.h>
+#include <sys/signal.h>
+#include <sys/unistd.h>
+#include <sys/types.h>
+#include <ox/types.h>
+#include <ox/defs.h>
+#include <platform/protected_mode_defs.h>
+#include <platform/segment.h>
+#include <platform/tss.h>
+
+PROBLEM AREAS:
+Make sure our code is clean in these areas :=
+I think interrupt.c sources need to be checked.
+
+interrupt.c
+io_req.c
+exception.c
+interrupt.s (grep for dd, we had to change how this is allocated for nasm)
+review all warnings and see if we can reduce them, they maybe sources of bugs.
+
+NOTES:
+We needed to create links for ./kernel/platform and boot and drivers links
+to allow the top-level Makefile and kernel/Makefile to work.
+

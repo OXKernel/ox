@@ -1,0 +1,38 @@
+#
+# get_data:
+#
+# Used to text the bootable image generated
+# by the top-level makefile.
+#
+# We can diff the extracted binaries 
+# with the ones used in the build.
+#
+# In general, get_data can be used to extract
+# sections from a binary file. Combined with
+# readelf -e vmox, can be used to extract
+# various sections from the ELF file for
+# comparison.
+#
+# Usage:
+#
+# ./get_data image_file offset size output_file
+#
+# NOTE: That addresses are in hex (so as to coincide
+# with output from readelf -e).
+#
+./get_data vmox.img 0x0 0x200 s1
+./get_data vmox.img 0x200 0x4000 s2
+./get_data vmox.img 0x4200 0x2746d vmox.1
+
+#
+# check_null:
+#
+# Checks if a given byte in data is null and
+# outputs its location if it is. Otherwise,
+# outputs the byte and its location. Used
+# to test if a specific section is null in a binary
+# file.
+#
+# Usage:
+# ./check_null file_name
+#

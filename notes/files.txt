@@ -1,0 +1,15 @@
+./platform/i386/drivers/src/chara/delay.c
+./platform/i386/drivers/src/chara/pit.c
+./platform/i386/arch/asm_core/scheduler.s
+./platform/i386/arch/asm_core/syscall.s
+./kernel/misc.c
+./kernel/process_queue.c
+./kernel/exec.c
+./kernel/def_int.c
+./kernel/scheduler.c
+./kernel/ox_main.c
+./kernel/exit.c
+./kernel/syscall/syscall_1.c
+./kernel/signal.c
+./kernel/fork.c
+./kernel/mktime.c

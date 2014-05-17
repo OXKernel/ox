@@ -1,0 +1,8 @@
+
+Setup make_links.sh to point to the absolute path of
+this directory and then run make_links.sh to setup
+symbolic links that are needed to build.
+
+You can remove the links using rm_links.sh.
+
+Do a make clean_all followed by a make to build from scratch.

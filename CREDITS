@@ -1,0 +1,124 @@
+This file lists references for the source code
+developed here. The code is Open Source and
+is available under GPLv2. The principal author and maintainer
+is currently Roger G. Doss, PhD, and can be reached at
+OpenSource@rdoss.com.
+
+Directory
+
+include directories provide interface code used to compile
+the kernel. The UNIX specific headers were derived from POSIX
+standard (though are not really implemented). OX specific
+headers were developed by Roger G. Doss. These are
+the headers in include/ox directory. Additional headers
+needed for device drivers were derived as stated below.
+
+./include
+./include/sys
+./include/ox
+./include/ox/fs
+./include/ox/lib
+./include/ox/mm
+
+ld contains linker scripts which are not being used
+but might be useful in some other context. They were
+used originally for testing the link of the kernel.
+
+./ld
+
+kernel contains the core kernel functionality. It was derived
+from linux. Most of the work done in this space was to get
+a scheduler that works and test the ability for tasks to be created.
+
+./kernel
+./kernel/syscall
+
+fs contains the code for a UNIX like filesystem. It was
+developed by Roger G. Doss. The code can also be used
+in user space with all files/directories being written into
+a single file.
+./fs
+
+platform is split into include directories
+and source. It contains device drivers for
+OX. The keyboard driver is based on GazOS keyboard
+driver and it was debugged and modified to work
+correctly for OX. The PIT driver was based on
+GazOS and osdever.net. The console driver was based
+on GazOS. The IDE and PIO code are derived from osdev.org.
+
+./platform
+./platform/i386
+./platform/i386/include
+./platform/i386/include/asm_core
+./platform/i386/drivers
+./platform/i386/drivers/include
+./platform/i386/drivers/include/chara
+./platform/i386/drivers/include/block
+
+drivers/src contains driver source code.
+
+./platform/i386/drivers/src
+./platform/i386/drivers/src/chara
+./platform/i386/drivers/src/block
+./platform/i386/drivers/src/block/pio
+./platform/i386/drivers/src/block/pio/tests
+./platform/i386/drivers/src/block/ide
+
+asm_core contains NASM assembler for the kernel
+including start.s, interrupt.s, and scheduler.s.
+Code was developed by Roger G. Doss. linux served
+as inspiration (but note that linux uses GAS Assembler).
+Note that Minix served as inspiration for
+./platform/i386/arch/interrupt.c.
+
+./platform/i386/arch
+./platform/i386/arch/asm_core
+./platform/i386/arch/asm_core/common
+
+The following directories are for the boot loader
+and the copying information is in the file :=
+./platform/i386/boot/COPYING.
+
+./platform/i386/boot
+./platform/i386/boot/include
+./platform/i386/boot/tests
+./platform/i386/boot/backup
+./platform/i386/boot/lib
+./platform/i386/boot/elf
+./platform/i386/boot/scripts
+./platform/i386/boot/scripts/conf
+./platform/i386/boot/scripts/tools
+
+libk contains string and printk code.
+It was developed by Roger G. Doss.
+
+./libk
+
+mm contains memory management logic.
+Some of the code derives from Gareth Owen,
+which were a part of the GazOS operating system
+which was released under GPLv2. Specifically, the
+code for dma, page_enable, and mem_size.
+Code for kmalloc.c and malloc.c, and most of the code
+in page.c was developed by Roger G. Doss. Some
+of the code for identity paging is based on code
+from osdev.org.
+
+./mm
+
+The code here was developed by Roger G. Doss.
+libc/std contains C string functions, libc/syscall
+contains C system calls which are implemented in a manner
+similar to the original linux codes and the assembler
+macros are derived from linux.
+
+./libc
+./libc/std
+./libc/syscall
+
+init is to contain our init process for this kernel.
+Currently, there is no code in this directory, its just
+a place holder.
+
+./init

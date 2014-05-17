@@ -1,0 +1,156 @@
+                        RESOLVED
+
+[0] Boot loader required a32 directive in front of the loop
+    on the memcpy while handling the ELF kernel.
+    This has been corrected.
+
+[1] GDT entry at GDT[1] was null and caused a problem with
+    interrupt handling as the hardware expected a descriptor
+    to be there. This has been corrected.
+
+[2] The memory allocator had incorrectly setup identity paging
+    for system memory which resulted in a hardware crash.
+    This has been corrected.
+
+[3] The keyboard driver seems to work for most keys. However,
+    when typing a numeric key from the main keyboard keys
+    and not the numeric keypad, there appears to be some
+    additional code needed to handle this case as the driver
+    reports more than one key is entered which is the key
+    plus a garbage character. Originally, the code would print
+    out the garbage character following the original pressed key.
+    Look at drivers/chara/keyboard.c and grep for #if 0.
+    New logic was added there not to include the garbage character
+    assumming ASCII input. This code seems to work.
+
+[4] The context switching logic has been changed to not use TSS.
+    It still uses struct tss but the context is saved to using
+    software and copied from using software. The code is written
+    in NASM and is in asm_core/scheduler.s. The function is
+    asm_soft_switch. There is an init phase where a task
+    is called to (using call instruction) after that, the stack
+    is switched. This should accomplish the context switch
+    when the scheduler interrupt is invoked. In the notes section
+    of this file are notes for the context switch before these
+    changes were made (when it was completely broken).
+
+                        KNOWN - UNRESOLVED
+
+[0] mem_set_read_only appears to not be setting the read-only flag
+    on a page correctly, or that the kernel is able to write the page
+    anyways. Not sure if it is because of how the GDT is setup or
+    if we are incorrectly referencing the wrong page table entry
+    for the address being allocated.
+
+[1] kmalloc/malloc may not know correctly when memory is fully exhausted
+    for the allocations. This can cause undefined behavior. Further
+    work is needed in determining when the allocators are out of memory.
+    To replicate, continue to allocate memory with either allocator,
+    most notably kmalloc() until the memory is exhausted and undefined
+    behavior will occur. We were able to do this with 1024 pages
+    of memory allocated to kernel and running kmalloc_unit_test().
+    To determine how much memory goes to the kernel,
+    see the following code in page.c :=
+
+    END_KMEM    = 4 * ONE_FULL_PAGE_TABLE_BYTES;
+    while(END_KMEM <= START_KMEM) {
+        END_KMEM += ONE_FULL_PAGE_TABLE_BYTES; // Assert our kernel memory actually ends after start.
+    }
+
+    Alternatively, we can count the number of pages allocated
+    and the number of pages freed. If we are about to allocate too many
+    or we exceed our limit, we can immediately return 0 (instead
+    of reaching a point where we overwrite memory).
+
+    The above is actually how we deal with this error. The intention
+    is that if we allocate more than we have we will fail instead
+    of overwriting any memory.
+
+[2] In fs_init() the call in inode_mkfs, there is a glitch
+    zero'ing out consecutive sectors, such as in the
+    inode section. Right now, we commented it out and only
+    zero out the bmap and imap maps. But the bug has to be resolved
+    as I think we are mistakenly zero'ing out the starting
+    sector 4096 for some reason. I checked that
+    get_chs and get_lba calculations do not mistakenly calculate
+    sector 4096 given inode start/end. Not sure what
+    the problem is or if it will prevent the file system from
+    working ok.
+
+[3] GDT_MAP as defined in page.c is initialized in page.c but when
+    externally referenced, it is not initialized. This maybe a serious
+    bug in the loader. To work around this, I added alloc_gdt
+    inside page.c and allow it to reference the GDT_MAP locally
+    from that file. As far as I know, GDT_MAP is not defined
+    statically so the linking should have worked. This issue
+    results in us context switching to segment 0 and produces
+    undefined behaviour as p_tss_seg was set to zero in fork.c 
+    because of it.
+
+                               NOTES
+
+[0] I couldn't get context switching to work. At current, when
+    we try to switch to the init task, we crash after
+    asm_switch_to_current or c_switch_to_current is called.
+    I am not sure what the problem is. Perhaps more investigation
+    will reveal a solution. In exception.c, I added
+    code to setup_paging() which sets up the kernel page table.
+    I thought this was needed after a switch and in a page fault
+    exception, not certain.
+
+    Here is the context of the CPU from bochs :=
+
+    02985784005i[CPU0 ] CS.mode = 32 bit
+02985784005i[CPU0 ] SS.mode = 32 bit
+02985784005i[CPU0 ] EFER   = 0x00000000
+02985784005i[CPU0 ] | EAX=00126201  EBX=0015511c  ECX=00000007  EDX=00000000
+02985784005i[CPU0 ] | ESP=0000fb50  EBP=0000fff7  ESI=00031000  EDI=00120000
+02985784005i[CPU0 ] | IOPL=0 id vip vif ac vm rf nt of df if tf sf zf af pf cf
+02985784005i[CPU0 ] | SEG sltr(index|ti|rpl)     base    limit G D
+02985784005i[CPU0 ] |  CS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] |  DS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] |  SS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] |  ES:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] |  FS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] |  GS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+02985784005i[CPU0 ] | EIP=00101797 (00101797)
+02985784005i[CPU0 ] | CR0=0xe0000011 CR2=0x00000000
+02985784005i[CPU0 ] | CR3=0x00200000 CR4=0x00000000
+02985784005i[CPU0 ] 0x00101797>> mov eax, dword ptr ss:[esp+24] : 8B442418
+02985784005i[CMOS ] Last time is 1373230777 (Sun Jul  7 16:59:37 2013)
+02985784005i[XGUI ] Exit
+02985784005i[     ] restoring default signal behavior
+02985784005i[CTRL ] quit_sim called with exit code 1
+
+eip 1144689 in scheduler.c
+esp0 4256556
+ss0 16
+
+on assign in fork.c
+eip 1144681
+esp0 4256556
+ss0 16
+
+Note that the value of eip changed from the time we set it in fork.c
+to the time it got envoked in scheduler.c, not sure why
+additionally, the EIP above in the CPU dump
+is not pointing to the address intended
+in the p_tss.eip field.
+
+I attempted to fix context switching by using a software context
+switch (asm_soft_switch); however, there is a bug where
+the kernel panics or crashes. See scheduler.c and scheduler.s
+(RGDDEBUG/RGDTODO comments in schedule() and asm_soft_switch()).
+The problem is an over write of the pointers in the process
+queue which is caused due to a write in the wrong location
+in the save of the context. Not sure why. The code in scheduler.s is :=
+
+    ; RGDDEBUG - Using this line of code causes the kernel to panic in scheduler.c
+    ;mov dword [eax + TSS_EIP + 0x8],ebx ; move EIP
+    ; RGDDEBUG - Using this line of code causes a tripple fault.
+    mov dword [eax + TSS_EIP],ebx ; move EIP
+
+I left it with asm_soft_switch(0,&(current_process->p_tss));
+which just copies from current_process->p_tss onto the registers
+but does not save. Maybe I am savign the wrong EIP or the EIP into the
+wrong location.

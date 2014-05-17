@@ -1,0 +1,31 @@
+
+ We implemented fcntl.c and open.c, ioctl.c calls.  The exec
+system calls need to be interfaced properly.  There should
+be a single system call, and the others just wrappers.
+The main system call is 'execve' which we have an interface
+for.  Lookup the man pages to see what needs to be done
+for the others.  For ioctl, we have a system dependent
+set of structures that can be passed into the kernel,
+these depend on the request.  For now, the third param
+is resolved using va_arg to unsigned.  I believe we can
+keep this, since all types can be casted to this.
+
+Further, we need to check where 'va_end' is actually implemented.
+We need to recall ELF documentation, static compilation ( with
+no system libraries, installation of binary data on to disk to
+build a boot disk, and binary utils ).
+
+The actual header for ioctl, sys/ioctl needs some work,
+see what Linus did for initial Linux kernel.
+
+[doss@lucky syscall]$ egrep '\.\.\.' *.c
+execl.c:int  execl  (const char *path, const char *arg, ...)
+execle.c:int  execle (const char *file, const char *arg, ...)
+execlp.c:int  execlp (const char *path, const char *arg, ...)
+execv.c:int execv(const char *file, char *const argv[], ...)
+
+done: fcntl.c:/* int fcntl  (int fd,int request, ...); */
+done: fcntl.c:int fcntl(int fd, int request, ...)
+done: ioctl.c:/* int ioctl  (int fd, int request, ...); */
+done: open.c:/* int open(const char *path,int flag,...); */
+done: open.c:int open(const char *path, int flag, ...)

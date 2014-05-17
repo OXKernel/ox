@@ -1,0 +1,6 @@
+
+Do a make clean
+followed by 
+make 
+        and 
+make test_bin

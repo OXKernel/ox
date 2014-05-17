@@ -1,0 +1,3 @@
+http://www.julienlecomte.net/simplix/sh.php?f=src/drivers/ide.c
+http://www.doc.ic.ac.uk/~svb/CS/Lab/Minix%203/lib/i386/misc/io_insl.s
+http://www.acm.uiuc.edu/sigops/roll_your_own/5.a.html

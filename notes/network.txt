@@ -1,0 +1,6 @@
+At this time, OX does not have a TCP/IP stack.
+There are freeware TPC/IP stacks available for
+embedded systems, and perhaps we can port one.
+For example, there is :=
+http://fnet.sourceforge.net/
+http://en.m.wikipedia.org/wiki/LwIP

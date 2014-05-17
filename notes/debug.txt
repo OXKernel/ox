@@ -1,0 +1,39 @@
+
+SEG sltr(index|ti|rpl)     base    limit G D
+00552781517i[CPU0 ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] |  DS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] |  SS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] |  ES:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] |  FS:002b( 0005| 0|  3) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] |  GS:002b( 0005| 0|  3) 00000000 ffffffff 1 1
+00552781517i[CPU0 ] | EIP=001026e4 (001026e4)
+00552781517i[CPU0 ] | CR0=0xe0000011 CR2=0xe0000011
+00552781517i[CPU0 ] | CR3=0x00014000 CR4=0x00000000
+
+00345488444e[CPU0 ] interrupt(): gate not present
+00345488444e[CPU0 ] interrupt(): not accessible or not code segment cs=0x40b8
+00345488444i[CPU0 ] CPU is in protected mode (active)
+00345488444i[CPU0 ] CS.d_b = 32 bit
+00345488444i[CPU0 ] SS.d_b = 32 bit
+00345488444i[CPU0 ] | EAX=e0000011  EBX=00000209  ECX=00000f9f  EDX=00000f9f
+00345488444i[CPU0 ] | ESP=0000ff5c  EBP=00000001  ESI=00000209  EDI=0001d000
+00345488444i[CPU0 ] | IOPL=0 id vip vif ac vm RF nt of df if tf SF zf af PF cf
+00345488444i[CPU0 ] | SEG selector     base    limit G D
+00345488444i[CPU0 ] | SEG sltr(index|ti|rpl)     base    limit G D
+00345488444i[CPU0 ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] |  DS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] |  SS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] |  ES:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] |  FS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] |  GS:0018( 0003| 0|  0) 00000000 ffffffff 1 1
+00345488444i[CPU0 ] | EIP=001026e4 (001026e4)
+00345488444i[CPU0 ] | CR0=0xe0000011 CR2=0xe0000011
+00345488444i[CPU0 ] | CR3=0x00014000 CR4=0x00000000
+00345488444i[CPU0 ] 0x001026e4>> add byte ptr ds:[eax], al : 0000
+00345488444e[CPU0 ] exception(): 3rd (13) exception with no resolution, shutdown status is 00h, resetting
+
+The above line 0x001025e4 clearly looks like its dereferencing a null pointer,
+but where is this in the code ?
+
+nm vmox | grep 001026e
+clearly shows its in or close to flush which is in page_enable

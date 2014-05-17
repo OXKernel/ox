@@ -1,0 +1,81 @@
+
+We tried many code changes, and still no successful boot.
+We can try:
+
+4) try writing to a real floppy and booting a real machine
+we still have our old laptop which we can test on.
+If it fails, we know we have a software issue (NASM, our loader, etc), if
+it succeeds, we know we have an issue with bochs.
+We can try this with our test kernel.
+Plug in the USB floppy drive, and see if we have
+a spare floppy that works.
+Turn on the old tosh laptop, and see if it boots.
+
+0) Write code to copy the image and output a file that is
+   1474560 where the remainder of the file is zeroes.
+   I think bochs expects that the file will be a fixed
+   size.
+   DONE. I think that fixes a bug. But the overall problem
+   of not getting into the kernel image remains.
+   Try constructing a flat binary kernel image and see what
+   happens. Although I still think the problem is
+   the GDT descriptors.
+
+1) try getting an older version of nasm
+   The oldest available now is :=
+   http://www.nasm.us/pub/nasm/releasebuilds/0.99.06/
+   We have an older version of nasm, it compiles without
+   error, but still doesn't boot.
+
+2) load a flat binary ( see Makefile bin target on how to do
+this and also use the boot loader code to exec a flat binary )
+
+3) try getting Virtual Box and see if we can boot from "floppy"
+on Virtual Box
+
+5) Remove the debug statement in the C kernel, and release
+it broken. Make a note that the code is untested and is Alpha
+quality.
+
+6) See if we can debug bochs using:=
+
+   magic_break: enabled=1
+
+   And insert
+   xchg bx, bx
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We changed include/gdt.inc,
+ the next to last line in macro desc
+ is now ((%3) & 0xFF)
+ I am not sure this will work.
+ The old will not work now I don't think as the value
+ is too large for an 8 bit byte and should cause integer
+ overflow. Another curious not is that the John Fine
+ code is different which suggests I rewrote this macro
+ or got it from some other place. I suggest reverting
+ to the John Fine macro at:
+
+ /home/doss/src/os/os/johnfine/bootp02
+
+The code was from GazOS. See :
+ /home/doss/src/os/os/gazos-working
+
+What we can do is try using John Fines original work
+provided the macros have the same values.
+
+Or, alternatively, compile GazOS and try to boot it.
+That will point us to whether or not we have a bug in
+some other place in the loader. I still suspect the 
+problem is in the descriptors, and hopefully, is not
+due to a bug somewhere else in the loader like the
+exec_elf_kernel. If it is exec_elf_kernel, we can try
+using binutils to convert our ELF file into a flat binary
+and then compile it into a bootable kernel.
+
+I think what we want is to change the desc into :=
+
+dd  (%2) + ( ( (%3) ^ D_PRESENT ) << 16 ) , (%1)
+
+From GDT_NEW.INC
+

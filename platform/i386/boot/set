@@ -1,0 +1,11 @@
+#!/bin/bash
+printf "checking project working directory.\n"
+THIS=`pwd`
+S=`cat scripts/project`
+
+if [ $THIS != $S ]
+then
+	printf "%s" $THIS > scripts/project
+fi
+
+printf "done...\n type: \n\t[. ./scripts/setup]\n\n to setup project\n"

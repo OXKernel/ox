@@ -1,0 +1,1069 @@
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [0] - Add a GPL header to all sources.
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   [0] - Clean up the code :
+
+         -Review the top-level and support directories,
+          may want to remove the html, tags, etc
+          DONE. Removed these files/directories as they
+          dated back to the original project creation years ago.
+
+         -Review notes in gvim
+          DONE. These just look like developer notes.
+
+         -See what is in the prj directory, especially
+          for docs, etc
+          DONE.
+
+         -Get a version for release ready
+          WORK. Just run or make release script and
+          see what is inside the archive it produces.
+          We only want the low-level ox source code directory
+          for distribution (not our backups/notes/scripts).
+          DONE. First version is now on the web.
+       
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   [0]   -Review comments
+          **Make another archive of the source.
+          DONE
+
+          **Save a copy of hard to debug files
+          as file.s.DEBUG.
+          DONE
+
+          **Remove comments not needed.
+          DONE
+
+          **Remove files used in development that are not needed.
+          DONE
+
+         -Cite references and influences (I beleive we
+          are doing this already in boot)
+          DONE
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   [0] - The context switch works using a call to the EIP
+         first, followed by switching stacks.
+
+         We verified using printk that schedule runs,
+         as well as init and init2.
+
+         August 11, 2013.
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [0] - We are going to try doing the context switch
+         using p_first_exec, if this is 0 or 1, we 
+         will set a mode to be 1 (issue a call into EIP),
+         otherwise, p_first_exec will be set to 2 and
+         mode will be set o 0 (no call into EIP).
+         We will also remove the saving of the EIP
+         that happens inside the asm_soft_switch function.
+         And we will add support for the mode bit.
+         In the switch, on first_time, we will still
+         load with asm_soft_switch(0,current_process tss,mode==1)
+         Thereafter, it will be 
+         asm_soft_switch(previous_process tss, current_process tss, mode)
+         Where mode will be decided by
+
+         if(proc->p_first_time == 0 ||
+            proc->p_first_time == 1) {
+            mode = 1; // Call into EIP.
+         } else {
+            mode = 0; // No call into EIP.
+            // Assume an already running task.
+         }
+         if(proc->p_first_time == 1) {
+            // Setup start as EIP for user task.
+         }
+         //if(proc->p_first_time == 0) EIP is set to init
+
+         Now, in asm_soft_switch
+         push eax
+         mov dword eax,[esp + 0xC] ; Get the mode.
+         mov dword [mode],eax ; Save the mode.
+         pop eax ; Restore EAX, the rest as before.
+
+         ; Later in call to EIP.
+         cmp [mode],1
+         jne .no_call
+            call eip
+         .no_call:
+
+         ; And remove the save of the EIP.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [*] - Code crashes when we try to save the state
+         I don't know why. It appears to do with
+         saving the EIP. I checked that the address
+         we are writing to is good. I couldn't print
+         out the address we were reading from as
+         print_reg crashed. Something isn't right
+         but I am not sure what.
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [0] - We added support for the remaining general
+         purpose registers (eax, ecx, edx) which
+         means we support now a context switch with
+         all general registers. We note that in this
+         kernel, the segment registers are the same
+         for all processes/threads and cr3 is also
+         unchanged. EFLAGS may need to be backed up
+         though and we will have to implement that.
+
+       - Implement save/restore of eflags
+         review how to do this.
+         We have some assembler to do it already,
+         not sure if it works. I think you have
+         to pop flags into a location in memory,
+         perhaps a register and then store into
+         the struct, and possibly copy from the
+         struct into a register, push onto stack
+         and pop flags.
+
+         DONE. We may want to verify that flags is 0x2,
+         but it should be because we popf and this
+         would crash otherwise.
+
+       - fork() a thread and test the scheduler.
+         By placing a print statement in each thread
+         (use init() as one of the threads) and another
+         thread thread_test() we should be able to
+         see one thread printing and the other printing.
+         
+         **fork() was not tested; however, we created another
+         entry point in create_init2_task() and verified that
+         the scheduler will pick up the latest process with
+         value largest than the other, and run that.
+         There was a bug where we needed to decrement the
+         current_process prior to run otherwise the scheduler
+         would pick off the same process over and over and would
+         starve out the others.
+
+         **in scheduler.c.NEW, for some reason, this code causes
+         us to crash, not sure why. The other code, scheduler.c
+         (which is same as scheduler.c.ORIG) seems to show
+         the scheduler alternating between processes.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [0] - Everything now seems to work with the software
+       context switch. We can 'call eax' to change
+       the EIP and save the EIP using 'mov eax, [esp]'
+       we also verified that scheduler() interrupt
+       and the init() task can run concurrently.
+       We should not use the hardware context switching
+       (its complicated and slow anyways)
+
+       - **Clean up the code, give credit to where it is 
+       due and make the code available via the web.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [1] - we can get to init; however, we are single threaded
+       we need to ack the pic/pit first to enable the scheduler
+       thread to kick off again (I think???)
+       see interrupt enable code from pit.c and follow
+       its implementation in assembler, I think we 
+       have to call it before we 'call eax'
+       try cli and enable_irq 0
+       ** This works to turn on the scheduler interrupt;
+       however switching back and forth between contexts
+       requires more work.
+
+       - On return from init, we have to switch back
+       to the old context, we may want to check
+       if first_time and previous_process is null,
+       create it, and save context to it, then
+       on return from init we could switch back to the original
+       context. However, I think in practice, we should
+       probably reboot if init returns.
+       ** We still need to try this out.
+
+       - Maybe write a routine called asm_soft_save_ctx(struct tss *current)
+        And jump back to it, not sure.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [0] Print out the address of &GDT[i==6]
+   and see if it is valid.
+
+   See ISSUES file for the latest error. Note
+   that to get it to an ok working order, we can
+   #ifdef _DEBUG the print statements in fork.c and
+   scheduler.c and comment out first_time in the if 
+   condition. Lastly, we can #ifdef the scheduler_init
+   in ox_main.c
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   [1] Test delay calibration (should work given
+   a working PIT which we just tested).
+   DONE. Works.
+
+   [2] Test scheduler_init() except we have to be 
+   careful since there is no init process as yet.
+
+   See kernel/scheduler.c
+   See kernel/fork.c (create_init_task)
+
+   * I think we can just run it after double checking
+   alloc_gdt and asm_switch_to_current()
+
+   * alloc_gdt just assigns a GDT, but from GDT_MAP,
+   what is GDT_MAP initialized to ? 
+    - GDT_MAP is init false except for first 6 which are true
+      reflecting the kernel usage.
+   Some must be
+   reserved for the kernel, and, do we need to initialize
+   it for the new process (with same segments as kernel
+   initially)
+
+   * Our tss starts as blank, does load_tss_in_gdt initialize
+   for us ? See protect_init_tsssegment
+   ./platform/i386/arch/protected_mode.c
+   defines the GDT data structure which we use to assign
+   a segment descriptor from which is then passed into
+   protect_init_tsssegment.
+   in kernel/fork.c, we load_tss_in_gdt passing in the blank
+   proc->p_tss address, later on we initialize it setting
+   up the context. In particular, we setup :=
+
+   proc->p_tss.eip = &init_proc_loop;
+
+   which sets its instruction pointer to the init loop.
+
+
+   [3] I think we may be able to release a first
+   version of this although we may want to
+   test fork and schedule. Exec I think we can leave
+   alone. It was tested in user space should have
+   some level of quality.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    We are now able to setup identity paging.
+    Test high memory to see if it is identity mapped
+    correctly (we will fault if it is not).
+
+    DONE. This works.
+
+    Work on moving the memory to high memory 
+    we need a full 4Meg to map all 4Gig of ram
+    and we need a place to store it.
+    Place it after the kernel's bottom 4Meg and
+    before any user/kernel pages are allocated.
+    Double check we don't create any error this way.
+
+    DONE. This looks like we just needed to adjust
+    REAL_KERNEL_END placing the pte and pde after
+    KERNEL_END.
+
+    ***Check our page_limit when setting up the
+    KERNEL_PAGE_DIR. Line 351.
+
+    DONE. This works correctly. We calculate END_KMEM
+    as a multiple of ONE_FULL_PAGE_TABLE_BYTES such that
+    it is beyond the memory for START_KMEM.
+    START_KMEM takes into consideration everything
+    (PAGE_TABLE_BYTES + REAL_KERNEL_END + (NR_MEM_MAP * sizeof(mem_map_t)))
+
+    We therefore must allocate START_KMEM to END_KMEM memory
+    to the kernel.
+
+    ***Test marking pages read only now that we now
+    how the pte page tables are setup.
+    I think we can use PT_INDEX(x) where x is the
+    memory address to lookup the index into the PTE
+    and then move size / 4096 pages marking as read-only.
+    Actually, I think its addr / 4096 is the index and
+    move to size / 4096 + size % 4096.
+
+    >> Next week <<
+
+    Test read only pages and unsetting read-only.
+
+        - I think this works in that the right page is retrieved
+        from the PTE and set to read-only (bit 2 is set to zero).
+        It does not crash when writing to it; however.
+        Not sure why. We fixed some bugs in this space, and will
+        return to it later.
+
+    Test page allocation.
+
+        page_alloc()
+        page_alloc()
+        page_free() - The last allocated page
+        page_alloc() - Should realloc what we just freed.
+
+        Should be able to write to the pages.
+        DONE.
+
+    >> Next week <<
+
+    Test malloc/free allocation for both user and kernel.
+
+        - malloc.c is ok we found a bug in sprintk
+        - kmalloc.c is broken; this is likely due to NR_SIZES being
+          to large for us to allocate in kernel space.
+          Try 16 instead. Kernel memory is a cramped space.
+          Also see why kpage_alloc overwrote memory instead of failing
+          if nr_pages is too large (this requires investigating
+          page.c
+        - comment of RGDDEBUG statements in kmalloc.c
+          after corrections are made.
+
+    Clean-up the extra files in mm/page.c.* and include/ox/mm/page.h.1.
+
+    DONE.
+
+    >> Next week <<
+
+    Return the startup logic to use our assembler and
+    IDT initialization if possible and test the
+    keyboard driver in that case. This will hopefully
+    work. This may take several weeks to do.
+    NOTE: We **MUST** fork a copy of the code so we
+    have a good version to go back to. And, we must
+    keep our i8259 logic here.
+
+    - Check irq_enable and irq_disable, see if they will work.
+    - In protected_mode.c, undeclare #define _USE_GAZ_IDT 1
+      this will use our old logic.
+    - See how the i8259 controller is initialized, if we are
+      using GAZ then _USE_NEW_OFFSET should be 1
+    - interrupt.c contains Init8259 which is setting up
+      the initialization as is done in GazOS.
+      We should keep this and use _USE_NEW_OFFSET.
+      We may keep enable_irq and disable_irq as well.
+      See where we have irq_enable/irq_disable declared and used
+      we may which to just use Gaz.
+      This means changing the drivers accordingly (if we don't
+      trust the assembler).
+
+      These files are :=
+
+      pit.c
+      keyboard.c
+
+    ** Now the test will be what happens inside our irq_xx functions.
+       Research this before enabling or changing any code.
+
+       This code lives in kernel/platform/asm_core/interrupt.s
+
+       Research what happens here.
+
+    This now works, we had to fix the shr to be shl, we also
+    had to fixup the stack after pushing down the irq for
+    the handler, and we had to enable_irq correctly.
+
+    ***We still need to correct the enable_irq logic so that
+    it does so when we return 1 ***
+    DONE
+
+    ***Place under debug macro our io print out code
+    DONE
+
+    *****The keyboard driver is receiving two additional
+    interrupts when we type in a numeric key from the main
+    keypad (see what other keys do this) and
+    see if we can check for those keys and set an interrupt_ignore
+    count and decrement it after words so we only
+    get the number. We can add this in getch()
+    if(ch >= '0' || ch <= '9')
+        buffer_count-=2;
+    return ch
+    DONE
+
+    >> Next week <<
+
+    Test the file system. We only have to test the
+    basics (initializing a file system, and basic operations
+    as this was tested in user space).
+ 
+    See vi ./platform/i386/drivers/src/block/pio/pioutil.c
+
+    -Test read write of 512 byte sectors
+
+        Test ata_write/ata_read see what the parameters should
+        be for dev and block. I think dev is 0 and block
+        is logical block address from 0 to n-1.
+        In dev.c
+
+    -Test getting MBR and size of hard disk partition
+
+        Review ata_disk_size and its call from fs_init()
+
+        ***Looks like we successfully read the first sector on disk
+        and it did not have a MBR for some reason.
+
+        ***Try writing some control data using ata_write and
+        then re-read it using a different buffer and ata_read,
+        if that works, we can use the filesystem provided
+        we find a way to size the drive.
+
+        Google MBR if no operating system on disk.
+        Google how to get the size of a hard disk.
+
+        Also, are we reading the write drive ? It looks like we
+        are and that the data is 0.
+
+        ***ata_nr_disks() is broken, for some reason we are not
+        able to do a CMOS READ. See in more modern linux how they
+        read the CMOS. Or, write it out in ISSUES file and
+        hard code it to one drive for now.
+
+        We now identify the drives using ide.c
+
+        [**] Write code to get the drive geometry and write it
+        to the partition table.
+        [**] Test block read/write.
+            - I think we can do this together, by writing the
+              partition table and re-reading it.
+              And then seeing if the data is there.
+        [**] Test the file system.
+            - See below.
+        DONE. There is code in pioutil.c that has to be removed
+        before we continue. It was used to successfully test.
+        We are now ready to test fs_init and inode tests.
+
+        DONE.
+
+    >>>> Next week <<<<
+
+    -Test formatting the drive init of hard disk
+
+        * Add size param on fs_init() to control
+          how large a file system we will create.
+          DONE.
+
+        * Review fs_init() and make sure its code
+        is good.
+        DONE. The only problem is a read of sector 0
+        which is the MBR which in practice will not
+        have the master inode. The master inode will
+        always be in BLOCK_START.
+
+        * Run fs_init(4 * (1<<20))
+          We are attempting to create a filesystem
+          with a small virtual hard disk size of 4 meg.
+          The code will actually reserve 2 meg initially,
+          and write 4096 sectors for the remaining 2 meg.
+
+        * Write code to reset the file system init
+        so we can overwrite the file system if we need
+        to.
+
+            - We can just call inode_mkfs(path, disk_size);
+            see fs/init.c. This is incase we fail to
+            initialize. See include/ox/fs/inode.h.
+
+        * There are block.c.TMP and inode.c.TMP, make
+        sure to copy block.c and inode.c to .DEBUG
+        and merge .TMP.
+
+        * There is a problem in inode.c see #if 0
+        right before block_reinit. We are miscalculating
+        the chs in get_chs in pioutil and overwriting
+        the sector (4096). See if we can get better
+        code from the web on how to convert lba to
+        chs using 28bit lba.
+
+        Outside of OX, can we try calling get_chs and get_lba
+        from 4096 to 8192 and see if we hit a duplicate ?
+
+
+    -Test file system using existing test driver(s)
+
+        Run inode, file, dir test drivers.
+
+        **I think it should be sufficient to run inode
+        test drivers. Or alternatively, leave it up to
+        someone else to test this.
+
+    >>>> Next week <<<<
+
+    Test the PIT driver.
+
+    ** Make sure this runs and the interrupt handler is called
+    when the timer goes off.
+
+    >> Next week <<
+
+    Test process functions, schedule, fork, exec, multi-tasking.
+
+    ** Main thing here is fork() and context switching.
+    Also, we may want to set a flag on struct process 
+    to prevent schedule() from switching a process with the flag
+    set, say bool can_switch or is_ready (if something is not
+    there already). This should then be set in ata_read/ata_write
+    functions to allow that code to be used in a multi-processing
+    environment. Also, there is a need to re-initialize the
+    memory manager for the context switch. I think we have
+    to re-setup the page directory, but I could be wrong
+    (at least set to the same from before without actually having
+    to do the whole init again).
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  *** Try to use /home/doss/src/ox/ox/tmp/resources/Demo12/Demo12/SysCore/Kernel/mmngr_virtual.cpp 
+      and http://www.brokenthorn.com/Resources/OSDev18.html
+      as a guide for identity mapping.
+
+    Using bochs, we know now why its crashing, its executing some
+    sort of incorrect code when we load the page dir.
+    We can post an intelligent question given this and what is
+    in debug.txt.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o Get it back to the state where we print out
+     the credits and into ox_main. Then we can
+     test memory management, and hopefully we can get
+     that to work. If we do, write an article on it.
+
+    ** Test mem_init next. **
+
+    Work on mem_init, see if we produce correct numbers
+    and see if enabling paging causes us to crash
+    (hopefully it doesn't).
+
+    Looks like we will not be able to enable paging
+    despite effort to correct the paging logic.
+    See if we can salvage the memory allocator logic
+    using FLAT 32bit addressing without paging.
+    So far, it looks like we can address high memory without
+    paging and that we were only going to use identity paging anyhow.
+
+    If we remove paging, then we will not be able to
+    mark pages as read-only or read-write.
+
+    *** We changed avail flag to be 1 when it was previously 0. ***
+
+    We note that linux 1.3 has paging supported :=
+
+    include/asm-i386/pgtable.h
+    include/asm-i386/page.h
+
+    PAGE_MASK is (~(PAGE_SIZE-1))
+
+    See http://wiki.osdev.org/Paging
+
+    for page table entry format.
+
+    **** Try revisiting the page.c.TMP code; maybe we do have to map
+    as many pages as there are memory ****
+
+    **** For interrupts, we should check to see what segment
+    selectors the processor is using. I think they are zeroed
+    out, we should print what is on the stack. The stack
+    looks like as shown here :=
+
+    http://prodebug.sourceforge.net/pmtut.html#Interrupt%20Handling
+
+    See our code in 
+
+    ~/Downloads/hdd/pio/
+
+    as an example of accessing the stack
+
+   o I think we should test the memory management and
+     then clean up the code a bit, create a CREDITS file,
+     and try to release something...
+     Memory management is next, sorry, I couldn't get
+     the interrupt handling to work.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   o Looks like a lot of the low-level code has bugs...
+     The interrupt handling is broken, perhaps we can use
+     GazOS ISRs but even those do not return properly,
+     although now they do get called because of the segment
+     selector being 8 when it should have been KERNEL_CS.
+
+    Issue one - Find out why we don't return correctly.
+
+    Issue two - Find out what is wrong with our irq_xx code.
+                Maybe we can put a trace in that and see where
+                its going. It currently results in an invalid instruction
+                exception. This suggests that the idt code
+                we replaced with GazOS code used to work, just
+                fails in the same place irq_xx logic which is doing
+                something wrong. We need to trace it.
+
+    Clean up start.s remove the debug code which is now part of start.s.DEBUG.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o One problem was the init_ctl in the interrupt.c
+     code, we replaced this with GazOS (need to rename)
+
+     We still need to trace why the driver didn't get launched
+     when we inputted on the keyboard...
+
+     Try to use GazOS logic as it is much simpler and written
+     in C...
+
+     We may also want to rip out our IDT init logic and replace
+     it with GazOS provided we can get GazOS code to work.
+
+     See set_vector in GazOS.
+
+    **For some reason, ox.bak.04192013 seems to work despite the
+    asm_enable_interrupt and I think its because its not linking
+    properly.
+
+    The problem is the interrupt vectors are set up correctly.
+    See ./kernel/platform/protected_mode.c
+    We have a RGDDEBUG there, I think its 0x68+ and 0x70+
+
+    Does it go into our handler ???
+    Relevant files from GazOS are include/gdt.h
+    include/8259.h, io/keyboard.c (set_vector), kernel/idt.c
+
+    We would need to replace protected_mode.c with code from kernel/idt.c.
+
+    ****Make another copy of ox, and then integrate GazOS IDT logic.
+    Try to merge it, first pass, setup set_vector for our irq_xx
+    logic, then if that doesn't work, remove it and do what GazOS
+    does by using asm generating the ISR. See if it works.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o Init of the keyboard driver seems to work; however,
+   we get an exception which causes us to panic.
+   We placed RGDDEBUG in :=
+
+   /home/doss/src/ox/ox/kernel/platform/asm_core/interrupt.s
+    - This will print the output of the register, see also print_reg.
+   /home/doss/src/ox/ox/drivers/chara/keyboard.c
+    - The printk call keyboard_handler
+
+   We crash in the call to irq_enable(1).
+
+   We modified ./kernel/platform/protected_mode.c
+   The code for setting up the interrupt descriptors was wrong,
+   it wasn't initialized and may have been the reason we crashed.
+   *fingers crossed*
+
+   *Try running it now*
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o start to remove the commented out code and
+     see if various subsystems initialize.
+     We are mainly interested in the keyboard driver
+     followed by the PIT, then the file system.
+
+     * We should probably write a scank to complement
+     the printk routine if this can be done easily.
+     Maybe we can leverage our vsprintk facility,
+     and instead of reading, we can write to the
+     supplied memory regions.
+
+     * Write an article about the boot loader and
+     how it works. This is important for our references
+     and to complement our file system article for
+     Code Project.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o we solved a really bad bug involving the need
+     for a32 assembler directive in front of the loop
+     directive in the memcopy asm code in the boot
+     loader. March 2013
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o even with GazOS, the code wont work. The
+     image says there are three sections, but accessing
+     the memory produces 0 and the actual section
+     load code does not run therefore the target memory
+     is 0 and the machine halts.
+
+     Try parsing the elf file in our exec.c code
+     and print out the header to see what the offsets
+     are. See where in the assembler we fail...
+     See the RGD comment and see if we can print out
+     the values in exec.c (make a copy of exec.c first).
+
+     Alternatively, see if we have the same problem
+     with exec_elf_kernel... maybe the data really is zero
+     perhaps we didn't load the sections correctly.
+
+     See if the offset address is right, and then
+     print out the value from vmox.img to see what it
+     is in on file...
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   o The bug is in exec_elf_kernel.
+     We were able to exec bin kernel; however, this
+     requires us to do nm vmox.exe | grep _start
+     and hard code the address of start in 
+     mov dword [kernel_start], address_of_start
+     which is an offset of 0x14000.
+     The main problem is the linker does not necessarily
+     place _start exactly at the beginning address
+     as required. So we would have to either script it,
+     or correct exec_elf_kernel.
+     My suggestion is to use GazOS implementation
+     unless we can ensure our offset for start is
+     exactly at -Ttext 0x14000
+
+     Even at address 0x14000 we actually have to
+     relocate it to 0x100000 and we have to double
+     check our memory allocator code is setup ok.
+     I think we have 0x100000 to 0x200000 as reserved
+     for the kernel.
+     However, this maybe a bug considering the filesystem
+     has a rather large bss segment (see size vmox)
+     which means we may have to either reduce the bss
+     (we have this is in the buffer cache) or 
+     increase the reserved memory in the memory allocator.
+     See
+      In include/ox/fs/block.h see RGD comment on
+      BLOCK_ARRAY_SIZE 
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   with out process_queue.o :=
+
+   text    data     bss     dec     hex filename
+     40535     3344   86912  130791   1fee7 vmox
+
+   with process_queue.o :=
+
+      text     data     bss     dec     hex filename
+        42181      3344   87040  132565   205d5 vmox
+
+   Observation, totals is greater than 128KB in latter case.
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    o NOTE: It looks like we do load the kernel; however,
+      the kernel entry point at e_entry which is set to 0x100000
+      is pointing to a different function than _start.
+      nm vmox | grep 100000 
+      reveals its pointing to atom_bit_set
+
+      When we jump to this address in memory, nothing happens,
+      we simply exit and go to asm_hlt in s2.s.
+
+      Previous reboot occurred because we went to handle_err
+      and in bochs, this forced an infinite loop of constant
+      load and reboot cycles, while in VirtualBox, this caused
+      us to halt execution (and crashed VirtualBox).
+      It should be noted that the reboot code is actually 16 bit
+      which can not be called at that point since we jumped
+      into 32bit protected mode code.
+
+      What is next is to find out why the compiler/nasm generate
+      code with the wrong starting offset and see if that causes
+      us to see something when we jump to kernel_start in s2.s.
+
+      The entry point is due to the mlinker.ld script, we now
+      set it to _start. However, this address is not 0x100000
+      although _start and e_entry are not matching.
+      I am not sure if our exec_elf_kernel logic requires
+      _start == e_entry == 0x100000.
+      If that is the case (and I think it is) then that's
+      probably the reason why we can't get the kernel to do
+      anything useful once we jump to the e_entry address.
+
+      I just tried setting atom_bit_set to == e_entry to 0x100000
+      and that still does nothing.
+
+      **I think what is happening is that we are crashing
+      when we jump to the address. Either the exec elf is wrong,
+      or for some reason, the kernel image is built wrong.
+      Or perhaps there is some incompatibility going on with nasm and cc.
+
+      ***We can now print a 1 on the screen. I think the problem
+      is we are not loading the kernel image correctly.
+      I think this has to do with the data section of the kernel
+      where strings are located. This means we need to 
+      debug the exec_elf_kernel code or that we did not build the
+      kernel correctly. For example, maybe there is something
+      wrong with using nasm.
+
+      See /home/doss/src/ox/ox/kernel/platform/main.c
+
+      However, accessing the C string is not working out.
+      C strings are in the data section of the process.
+      size vmox
+      shows we have a rather large bss segment.
+      data segment is much smaller.
+      review our code for doing exec in exec.c and see where
+      in assembler we are doing the same thing and how we load
+      the data segment.
+
+      In include/ox/fs/block.h see RGD comment on
+      BLOCK_ARRAY_SIZE 
+
+      I changed it from 4096 to 128.
+      Which shrinks it considerably.
+
+      Try running through the normal kernel init, and see
+      if we actually print our banner message.
+
+      I have a feeling we did not setup the data segment properly.
+
+    o NOTE: In main.c we do not call ox_main.c so the init
+      is not going to work. I think the problem is that
+      the image is built incorrectly. Its not putting the
+      text at 0x100000, it is for the test kernel and therefore
+      that boots. There is something wrong with the real vmox build.
+      This is verified by our output of kernel_start which matches
+      what is in the file as an offset from 0. I think it should
+      be 0x100000 as that is where we are being relocated to.
+      We can also run ./boot/elf/elftest ./vmox
+      which shows the entry point at a physical address.
+      How to correct this ?
+      We may try compiling all C code with -fpic
+      in addition to -static -nostdlib.
+      I think we may need the -fpic option on all C code.
+      I just tried with -r in the final ld link line and
+      that does produce code with the right e_entry but
+      its not an executable.
+
+    o Get vmox.img to boot, hopefully this works with
+      VirtualBox. We also need to remove the
+      debug logic in start.s in kernel/platform/asm_core/start.s
+
+    o Go to every directory and write a COPYING file
+      giving appropriate credit, or alternatively,
+      place one at the top-level with a note
+      on each directory and what references we had.
+
+    o If time permits, go through and try to test out
+      as much of the kernel code we wrote as possible.
+      We can do this by writing a test driver inside ox_main.c.
+
+    o Make the code available on the website for others to
+      test and work on. Release the CodeProject article.
+
+    o Clean up the todo, see find . -iname '*todo*'
+      (just go through the documents and see what we might have
+      missed).
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    o in boot/lib/bprint.s there is assembler to print
+      a message during the boot process.
+      try to use it to debug the boot process and see
+      where we crash. We are in stage 2 boot loader,
+      appears that we are calling boot/lib/track_read.s and 
+      as the '.' is printed, we crash.
+      I don't think that we actually get to 
+      converting the file into ELF and jumping into
+      the core kernel. We have to investigate this.
+
+    o It looks like the s2.s code for starting up protected
+      mode is wrong, pay attention to the assemblers error
+      on word length, this may be the problem.
+    
+    o There are some additional codes for debugging in :=
+      kernel/platform/asm_core/start.s
+
+      - Its crashing in the enable_pmode logic,
+        and it goes into infinite loop when we call into
+        the kernel_start. This suggests that we have some
+        form of corruption. My first guess
+        is to take a look at the warnings about out of bounds,
+        maybe something needs to be declared differently.
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    o Review the TODO files and see what we may have missed.
+
+    o Review the syscall_*.c files and make sure thay all
+      return ENOSYS if the system call is not implemented.
+
+    o See how we can build a boot disk for bochs or virtual box
+      and see how we can load the os into a virtual machine.
+
+    o At least get it to initialize its sybsystems and issue
+      a "hello world" message. Probably do not init the fs
+      without reviewing what that code will do.
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     Nr_GDT 8192 (max allowed by hardware)
+     __GDT__ is the loaddescriptor loaded by hardware
+    descriptor is in ./platform/i386/include/segment.h
+    see protected_mode.c for how selectors are set up.
+    Do we need one for kernel code/data (or can we use one
+    from boot)?
+
+    Our implementation is in kernel/fork.c and kernel/exit.c
+    see references to gdt. (alloc_gdt, load_tss_in_gdt).
+
+    Our segment selectors, I think for now, we want all
+    in kernel selector (not user).
+    ./platform/i386/include/segment_selectors.h
+
+    QN: How is the tss in struct process linked to the gdt
+    and how is the jump to tss done ?
+
+    - in fork.c, should we have a pointer to cpu_ctx ?
+    - in fork.c adjust eip in fork eip = exec + (eip-old_exec)
+      DONE
+    - in fork.c adjust gdt in fork
+      DONE
+    - in fork.c see what the kernel cs/ds segments are I think
+      we want the user programs to be in the same segment
+      (There is KERNEL_CS in asm; this is in :=
+      segment_selectors.h)
+      I think we are ok with just initializing the init process.
+      DONE - Init of init process.
+
+    - in signal.c see how we can setup a signal handler and setup the
+      stack for it in signal.c (in user space we do not
+      have an interrupt stack with eip in it so can't test)
+
+    - in scheduler.c, we need the init code and the init process creation.
+      See how linux does this. And see how our pit timer interrupt works
+      see how we can register our scheduling.
+
+    - TIME need to implement sys_time, sys_stime, sys_times,
+      in kernel/misc.c
+      and these require jiffies like timing facility.
+      See how linux does this...
+      We can use ktime(0) to get the time stamp (instead
+      of jiffies). We added sys_time, sys_times, sys_mktime
+      and sys_alarm. Should lead into writing the scheduler.
+      DONE.
+
+    - **We need to now concentrate on tss segment, gdt segment
+      code/data segments for process, as well as creation of
+      init process. See fork.c for process code/data and gdt/tss
+      see scheduler.c for tss and ini.**
+
+    - gdt_map ? is it needed ? I set it up to be 4096 long
+      and set init to false with first 6 as true. This
+      is a map of gdt assignment, we likely revisit this
+      when doing fork/exec...
+
+    - Is memory above 1 MEG available to us ? i.e., do we need
+      to init 32 bit protected mode/a20 line etc ? or do
+      we have the code to do this already ?
+      **Check this when we go to work on lowcore.
+      **I think we should be in 2 MEG as REAL_KERNEL_END, check!!!
+
+    - I think we have to init i8259 controller first.
+      No, findsym interrupt_init is called in
+      ./platform/i386/arch/asm_core/start.s.
+      DONE
+
+    - Add links to build device drivers.
+      vi /home/doss/Downloads/hdd/pio/TODO
+  
+    - See ../../TODO, we should then work on lowcore.
+      We may stop and try to compile things first.
+      See what sys calls are available for processes
+      and see what they involve to implement them.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    - Nov 3, 2012
+        * Integrate at least the sources, to mm and fs
+
+        * Integrate bits (after perhaps some testing)
+          to libk and add a header (we may need it)
+
+        * Change the fs code by adding calls to
+          - call cli/sti before and after syscalls
+          - integrate with our syscalls framework
+          - add a hard disk driver (this must be ported
+            to use our asm io routines and possible memory allocator)
+            provide a system interface to read/write from the disk
+
+        * Add our pit and a keyboard driver {see if
+          http://www.osdever.net/bkerndev/Docs/pit.htm has
+          something, or default to linux, or gazos}, I think we should
+          leave the pseudo-terminal code alone for now, and most
+          likely will port linux code here
+
+        * Finish integrating the mm code and try to test it somehow,
+          or code review it.
+
+    - We need to correct errors as gcc has improved
+      significantly.  See if we can compile our code
+      and run the 'hello world' program.
+
+    - Add memory management code.
+
+    - Add device drivers based on NASM versions
+      of GazOS.
+
+	- We have to re-read our code, and start documenting it !
+	  We need to write a more functional loader and document it
+	  after we are done...
+
+	- Correct the interrupt and exception handling code in the lower levels
+	  of the Operating system.
+
+	{DONE}  exception handling code re-worked, using new code and new stack frame.
+		? re-write the common_handler_return code ? If interrupt handler
+		can be made to use this, we are going to factor it out
+		of syscall.s to exit.s for elegance !
+
+	{DONE} Interrupt handling code, how to return from ISR ?  This is the 
+	last piece of the puzzle, after words we can re-design the
+	exit.s code to make it more elegant.
+	move the print ctx code from the tests to the header of
+	the cpu_ctx.h file, for use in the kernel.
+	May want to factor the code for returning from execpt/syscall/interrupt
+	into a single module.
+
+	- {WORK} Modify the interrupt.c code to support IRQ probing as designed
+	  in the notes. ( EZ => already done in the notepad. )
+	  Add shared and exclusive IRQ support in interrupt.c.
+
+	- {WORK} Check if the io req code works and compiles. ( EZ )
+
+
+	{ Test all code on dummy.  Start writing the drivers below. }
+
+	- Rewrite the console support code.
+	- Add keyboard support.
+	- Timer driver.
+	- Add DMA request code.
+	- Add delay calibration.
+	- Floppy driver.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    - Move the header files in mm into the ox include dir.
+      DONE
+
+    - Modify the make file to build our sources.
+      DONE
+
+    - In ox_main.c, call mem_init() to init memory.
+      DONE
+
+    - Find a value for KERNEL_END, I think it should be 1MEG
+      and we probably don't need to reference _K_BASE.
+      DONE
+
+    - Should we assign to the kernel the bottom 1 MEG by setting
+      up those pages as well ? I think this is being done already
+      at line 302, see we compute page_limit at END_KMEM/PAGE_SIZE
+      and start from 0, then call MAKE_PAGE_ADDR(count*PAGE_SIZE,...
+      where count * PAGE_SIZE is assigned to the kernel.
+      The question should be what is REAL_KERNEL_END used for
+      since we set the end of kernel mem as END_KMEM which
+      I think is one full page table ? I want to say that 
+      END_KMEM is the end of all kernel memory, and 
+      from 0 to REAL_KERNEL_END is not dynamic kernel memory,
+      so we should have from REAL_KERNEL_END to END_KMEM for
+      dynamic kernel allocations. mem_set_/mem_unset functions
+      do not take this into consideration and simply count
+      to NR_PAGE_TABLES. Actually, I think this is handled
+      in kpage_alloc and kpage_free and mem_set/mem_unset
+      are low-level functions. We use in kpage_alloc a limit
+      of NR_KPAGES and appear to set it up to allocate
+      from START_KMEM see line 546.
+      DONE
+
+    - Integrate memory and loader script (see asm.tar.gz).
+      This is probably more important as it will set as
+      up to implement fork/exec and scheduling.
+      See what else in oldlinux/kernel ?
+      I think we are going to start our memory from 1 MEG
+      and above leaving the lower 1 MEG to io and kernel.
+      kernel gets loaded at 0x14000 (see _K_BASE) and
+      should not exceed 512KB (at least not initially).
+      Do we need to include the bottom 1MEG and mark as kernel
+      pages (I think we do otherwise the user process may overwrite
+      it).
+      DONE, no need for loader script, KERNEL_END is now 1MEG.

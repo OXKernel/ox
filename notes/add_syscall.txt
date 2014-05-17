@@ -1,0 +1,8 @@
+vi ./platform/i386/include/call.h
+vi include/ox/syscall.h
+vi kernel/syscall_tab.c
+vi ./include/ox/defs.h
+vi ./include/sys/unistd.h
+vi libc/syscall/
+vi libc/syscall/Makefile
+vi kernel/syscall/syscall_*.c
