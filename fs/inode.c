@@ -303,7 +303,6 @@ inode_rtvl_t inode_create_fs(char *path, block_t block_start, block_t size)
    printk("inode_mkfs:: block_start=%d\n",block_start);
    dev_scan(dev, block_start);
    dev_write(dev, block_start, (char *)master);
-   local_sleep(100);
    //master->magic = 0; // RGDDEBUG
    //dev_read(dev, block_start, (char *)master); // RGDDEBUG
    //if(master->magic != INODE_MAGIC) { // RGDDEBUG
@@ -340,16 +339,10 @@ inode_rtvl_t inode_create_fs(char *path, block_t block_start, block_t size)
    printk("inode_start=%d inode_end=%d\n",
         master->inode_start,
         master->inode_end);
-#if 1
-   printk("The magic number BEFORE is: %d\n", master->magic); 
+#if 0
    for(i = master->inode_start; i < master->inode_end; i++) {
-   //for(i = 4155; i < 4161; i++) {
       dev_scan(dev,i);
       dev_write(dev,i,zero_data);
-      printk("Writing zeroes to block %d\n", i);
-      dev_read(dev, block_start, (char *)master);
-      printk("The magic number is: %d\n", master->magic); 
-      //local_sleep(10);
    }
 #endif
    block_reinit();

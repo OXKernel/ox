@@ -124,7 +124,6 @@ void get_chs(unsigned int lba, unsigned char *head, unsigned char *sector,
 {
     unsigned short cylinder = lba / (SPT * HPC);
     *head   = (lba / SPT) % HPC;
-    printk("get_chs HEAD: \%x\n",*head);
     *sector = (lba % SPT) + 1;
     *cyl1   = (unsigned char)(cylinder & 0xFF); /* low bits  */
     *cyl2   = (unsigned char)(cylinder >> 8); /* high bits */
@@ -278,9 +277,6 @@ int ata_read(unsigned char drive, unsigned int lba, char *buffer)
         // from kernel panic...
         return -1;
     }
-    printk("ata_read:: "
-           "READ SUCCESS lba=%x drive=%x drive_head=%x sector=%x cyl1=%x cyl2=%x\n",
-            lba,drive,drive_head,sector,cyl1,cyl2);
     local_sleep(1);
     return 0;
 }/* ata_read */
@@ -309,9 +305,6 @@ int ata_write(unsigned char drive, unsigned int lba, char *buffer)
         // from kernel panic...
         return -1;
     }
-    printk("ata_write:: "
-           "WRITE SUCCESS lba=%x drive=%x drive_head=%x sector=%x cyl1=%x cyl2=%x\n",
-            lba,drive,drive_head,sector,cyl1,cyl2);
     local_sleep(1);
     return 0;
 }/* ata_write */
