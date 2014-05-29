@@ -339,12 +339,10 @@ inode_rtvl_t inode_create_fs(char *path, block_t block_start, block_t size)
    printk("inode_start=%d inode_end=%d\n",
         master->inode_start,
         master->inode_end);
-#if 0
    for(i = master->inode_start; i < master->inode_end; i++) {
       dev_scan(dev,i);
       dev_write(dev,i,zero_data);
    }
-#endif
    block_reinit();
    dev_scan(dev,0);
    dev_close(dev);

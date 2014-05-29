@@ -103,8 +103,8 @@ unsigned char get_drive_head(unsigned char drive,
                              unsigned char head)
 {
    unsigned char val = 160; // bit 7 == 1, bit 5 == 1, all others 0.
-   val |= (drive << 4); // Set the forth bit.
-   val |= (head & 240); // Set bottom for bits 0-3.
+   val |= ((drive & 0x1)<< 4); // Set the forth bit.
+   val |= (head & 0xF); // Set bottom for bits 0-3.
    return val;
 }/* get_drive_head */
 
