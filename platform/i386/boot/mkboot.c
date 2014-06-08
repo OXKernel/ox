@@ -36,13 +36,12 @@ main(int argc, char **argv)
     }
 
     img = fopen(argv[1], "r");
-    out = fopen(argv[2], "w");
-
     if(!img) {
         fprintf(stderr,"error opening image file [%s]\n", argv[1]);
         return 2;
     }
 
+    out = fopen(argv[2], "w");
     if(!out) {
         fprintf(stderr,"error opening output file [%s]\n", argv[2]);
         return 2;

@@ -8,6 +8,8 @@
 # @description:
 #   Remove sym links.
 #
+rm -rf ./platform/i386/drivers/include/chara/chara
+rm -rf ./platform/i386/drivers/include/block/block
 rm -f ./include/platform/drivers/chara
 rm -f ./include/platform/drivers/block
 rm -f ./include/platform/drivers
