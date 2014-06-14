@@ -31,7 +31,7 @@ C_ENTRY page_enable
         mov cr3,eax ; Load address of page dir into cr3
         mov eax,cr0
         or eax,0x80000000   ; enable paging bit
-        ;or eax,0x80008000   ; enable paging and write protection (bits 31 and 16 set)
+        ;or eax,0x80010000   ; enable paging and write protection (bits 31 and 16 set)
         mov cr0,eax         ; Set PG bit of CR0
         jmp short flush     ; Flush out the cache
 flush:
