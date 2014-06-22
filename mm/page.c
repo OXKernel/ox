@@ -118,8 +118,8 @@ void asm_enable_interrupt() {}
 static mem_map_t *mem_map = (mem_map_t *)0; // Address assigned in mem_init.
 #endif
 
-static unsigned ALLOC_PAGES         = 0; // Number of pages allocated.
-static unsigned KALLOC_PAGES        = 0; // Number of kernel pages allocated.
+static   signed ALLOC_PAGES         = 0; // Number of pages allocated.
+static   signed KALLOC_PAGES        = 0; // Number of kernel pages allocated.
 static unsigned MEM_SIZE            = 0; // Size of memory in bytes.
 static unsigned NR_PAGES            = 0; // Number of pages.
 static unsigned NR_KPAGES           = 0; // Number of kernel pages (dynamic).
