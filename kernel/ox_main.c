@@ -53,6 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <drivers/chara/pit.h>
 #include <ox/process.h>
 #include <ox/scheduler.h>
+#include <ox/mm/page.h>
 
 extern int INTERRUPT_COUNTER;
 extern void raise_software_interrupt();
@@ -127,23 +128,28 @@ int ox_main (int argc, char **argv)
     printk("ox_main:: done  initializing memory\n");
 //#endif
 
-#ifdef _TEST_PAGE_ALLOC
+//#ifdef _TEST_PAGE_ALLOC
    *addr = '1'; 
    printk("addr [%c]\n",*addr);
    // Test page allocation and setting of read-only pages.
    // Try setting read-only on kernel page.
-   addr = kpage_alloc(1);
+   addr = page_alloc(1);
    printk(" ADDR = [%d]\n",addr);
-   mem_set_read_only(addr,1);
+   // mem_set_read_only(addr,1);
    printk("Should crash here\n");
    *addr = '2';
    printk("Didn't crash\n");
    printk("addr [%c]\n",*addr);
-   addr = 1;
    *addr = 0;
    printk("Didn't crash\n");
 
+   page_free(addr,1);
    addr = page_alloc(4);
+   printk("addr := %d\n",addr);
+   if(addr == 0) {
+       printk(" file %s line %d\n",__FILE__,__LINE__);
+       for(;;) /* halt */;
+   }
    for(i = 0; i < (4 * 4096); ++i) {
         addr[i] = (i % 128);
         //if(addr[i] < 0) addr[i] = -addr[i];
@@ -161,9 +167,10 @@ int ox_main (int argc, char **argv)
    } else {
         printk("memory allocated successfully!\n");
    }
-   page_free(addr);
+   page_free(addr,4);
 
    addr = page_alloc(8);
+   printk("addr := %d\n",addr);
    for(i = 0; i < (4 * 4096); ++i) {
         addr[i] = (i % 128);
         //if(addr[i] < 0) addr[i] = -addr[i];
@@ -181,15 +188,19 @@ int ox_main (int argc, char **argv)
    } else {
         printk("memory allocated successfully!\n");
    }
-   page_free(addr);
+   printk(" file %s line %d\n",__FILE__,__LINE__);
+   page_free(addr,8);
+   printk(" file %s line %d\n",__FILE__,__LINE__);
    //
    // now test kernel memory allocation
    //
    addr = kpage_alloc(4);
+   printk("addr := %d\n",addr);
    for(i = 0; i < (4 * 4096); ++i) {
         addr[i] = (i % 128);
         //if(addr[i] < 0) addr[i] = -addr[i];
    }
+   printk(" file %s line %d\n",__FILE__,__LINE__);
    ch = 0;
    for(i = 0; i < (4 * 4096); ++i) {
         if(addr[i] != (i % 128)) {
@@ -203,13 +214,17 @@ int ox_main (int argc, char **argv)
    } else {
         printk("memory allocated successfully!\n");
    }
-   kpage_free(addr);
+   printk(" file %s line %d\n",__FILE__,__LINE__);
+   kpage_free(addr,4);
 
+   printk(" file %s line %d\n",__FILE__,__LINE__);
    addr = kpage_alloc(8);
+   printk("addr := %d\n",addr);
    for(i = 0; i < (4 * 4096); ++i) {
         addr[i] = (i % 128);
         //if(addr[i] < 0) addr[i] = -addr[i];
    }
+   printk(" file %s line %d\n",__FILE__,__LINE__);
    ch = 0;
    for(i = 0; i < (4 * 4096); ++i) {
         if(addr[i] != (i % 128)) {
@@ -223,9 +238,11 @@ int ox_main (int argc, char **argv)
    } else {
         printk("memory allocated successfully!\n");
    }
-   kpage_free(addr);
+   printk(" file %s line %d\n",__FILE__,__LINE__);
+   kpage_free(addr,8);
+   printk(" file %s line %d\n",__FILE__,__LINE__);
 
-#endif
+//#endif
 
 #ifdef _TEST_MALLOC
 
