@@ -106,4 +106,4 @@ test_bin:
 	cd elf; cc get_data.c -o get_data
 
 mkboot:
-	cc -m32 mkboot.c -o mkboot	
+	cc mkboot.c -o mkboot	
