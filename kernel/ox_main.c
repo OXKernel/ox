@@ -133,7 +133,7 @@ int ox_main (int argc, char **argv)
    // Test page allocation and setting of read-only pages.
    // Try setting read-only on kernel page.
    addr = kpage_alloc(1);
-   printk(" ADDR = [%d]\n",addr);
+   printk(" ADDR = [%x]\n",addr);
    mem_set_read_only(addr,1);
    printk("Should crash here\n");
    *addr = '2';
