@@ -188,15 +188,17 @@ void protect_init( void )
 	 */
 #ifndef _USE_GAZ_IDT
     printk("protect_init:: initializing IDT\n");
-	for (i=0 ;i < Nr_EXCPT_HNDLR ; i++) {
+	for (i = 0; i < Nr_EXCPT_HNDLR; i++) {
 		protect_init_trapdesc(EXCPT_INT_TAB[i].vector_number,
 				      (unsigned int)EXCPT_INT_TAB[i].address,
 				      EXCPT_INT_TAB[i].privilege);
 	}
-	for (i=0 ;i < Nr_INT_HNDLR ; i++) {
-		protect_init_intdesc(EXCPT_INT_TAB[i + Nr_EXCPT_HNDLR].vector_number,
-			      	     (unsigned int)EXCPT_INT_TAB[i + Nr_EXCPT_HNDLR].address,
-				     EXCPT_INT_TAB[i + Nr_EXCPT_HNDLR].privilege);
+
+	int count_HNDLR = Nr_INT_HNDLR + Nr_EXCPT_HNDLR;
+	for (i = Nr_EXCPT_HNDLR; i < count_HNDLR; i++) {
+		protect_init_intdesc(EXCPT_INT_TAB[i].vector_number,
+			      	     (unsigned int)EXCPT_INT_TAB[i].address,
+				     EXCPT_INT_TAB[i].privilege);
 	}
 	/* set-up system call handler at int 80
 	 */
