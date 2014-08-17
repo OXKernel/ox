@@ -72,19 +72,13 @@ struct load_descriptor {
 extern
 struct segment_descriptor GDT[];
 
-/* Enable _USE_GAZ_IDT to test page fault
- * exception during write access in
- * supervisor-mode when CR0.WP = 1
- */
-//#define _USE_GAZ_IDT
-
 /* The following data structure is the 
  * IDT (INTERRUPT DESCRIPTOR TABLE), it
  * contains the segments for all interrupt
  * handling, it is initialized and loaded 
  * on startup.
  */
-#ifndef _USE_GAZ_IDT
+#ifdef _USE_ALTERNATIVE_IDT
 extern
 struct segment_descriptor IDT[];
 #endif

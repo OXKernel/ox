@@ -29,7 +29,7 @@ ASMCORE = 	./asm_core
 
 OBJS = \
 	asm.o            \
-	idt.o \
+	gdt_init.o \
 	exception.o	 \
 	interrupt.o      \
 	protected_mode.o \
@@ -39,7 +39,7 @@ OBJS = \
 
 AOBJS = \
 	asm.a            \
-	idt.o \
+	gdt_init.o \
 	exception.o	 \
 	interrupt.o      \
 	protected_mode.o \

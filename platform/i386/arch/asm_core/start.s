@@ -40,8 +40,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 extern __GDT__				; protected_mode.c
 extern __IDT__				; protected_mode.c
-extern loadgdt              ; idt.c - Used for debugging.
-extern loadidt              ; idt.c - Used for debugging.
+extern loadgdt              ; gdt_init.c - Used for debugging.
+extern loadidt              ; gdt_init.c - Used for debugging.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; external routines
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
