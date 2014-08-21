@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __GDT_IDT_INIT_H
 
 void initilize_idt(void);
-void init_vector(void *intr_handler, unsigned char intr_num, unsigned short attrs, unsigned int selector);
+void init_vector(void *intr_handler, unsigned char intr_num, unsigned short attrs, unsigned short selector);
 
 /*
  *  descriptor type

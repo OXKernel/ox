@@ -50,6 +50,11 @@ asm (
 	"iret                    \n" 
 );
 
+void load_idt(struct gate_entry *IDT)
+{
+	asm volatile ("lidt %0"::"m" (*IDT));
+}
+
 union desc_entry __GDT[100] =
 {
 	{.dummy = 0x0},
@@ -125,9 +130,11 @@ void initialize_idt(void)
 	init_vector(irq_15, S_VEC+7, common_attrs, KERNEL_CS);
 
 	init_vector(syscall_handler, SYSCALL_INT, common_attrs, KERNEL_CS);
+
+	load_idt(&(__IDT[0]));
 }
 
-void init_vector(void *intr_handler, unsigned char intr_num, unsigned short attrs, unsigned int selector)
+void init_vector(void *intr_handler, unsigned char intr_num, unsigned short attrs, unsigned short selector)
 {
 
 	__IDT[intr_num].offset_low    = (unsigned short) (((unsigned long)intr_handler) & 0xffff);

@@ -188,9 +188,6 @@ void protect_init( void )
 	 */
 #ifndef _USE_ALTERNATIVE_IDT
 	printk("protect_init:: initializing IDT\n");
-	initialize_idt();
-#else
-	printk("protect_init:: initializing alternative IDT\n");
 	for (i = 0; i < Nr_EXCPT_HNDLR; i++) {
 		protect_init_trapdesc(EXCPT_INT_TAB[i].vector_number,
 				      (unsigned int)EXCPT_INT_TAB[i].address,
@@ -205,6 +202,9 @@ void protect_init( void )
 	}
 	/* set-up system call handler at int 80 */
 	protect_init_intdesc(SYSCALL_INT, (unsigned int)&syscall_handler, 0x3);
+#else
+	printk("protect_init:: initializing alternative IDT\n");
+	initialize_idt();
 #endif
 
 }/* protect_init */
