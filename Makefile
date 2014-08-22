@@ -65,7 +65,7 @@ OBJS = \
 	./platform/i386/arch/interrupt.o \
 	./platform/i386/arch/exception.o \
 	./platform/i386/arch/segment.o \
-	./platform/i386/arch/idt.o \
+	./platform/i386/arch/gdt_init.o \
 	./platform/i386/arch/protected_mode.o \
 	./platform/i386/arch/main.o \
 	./platform/i386/arch/asm_core/interrupt.o \

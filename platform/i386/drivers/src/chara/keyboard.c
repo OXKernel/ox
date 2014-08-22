@@ -46,7 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <platform/protected_mode_defs.h>
 #include <platform/asm_core/interrupt.h>
 #include <platform/asm_core/util.h>
-#include <platform/gdt.h>
+#include <platform/gdt_init.h>
 #include <platform/8259.h>
 
 #include <asm_core/io.h>

@@ -228,8 +228,10 @@ C_ENTRY excpt_general_protection
 C_ENTRY excpt_alignment_check
 	ERROR_HANDLER do_alignment_check
 
-C_ENTRY excpt_page_fault
-	ERROR_HANDLER dword do_page_fault
+[EXTERN do_page_fault]
+[GLOBAL excpt_page_fault]
+excpt_page_fault:
+  call do_page_fault
 
 C_ENTRY excpt_double_fault
 	ERROR_HANDLER do_double_fault
