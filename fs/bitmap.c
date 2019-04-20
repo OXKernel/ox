@@ -52,6 +52,7 @@ void bit_set(char *data, int bit, int value)
    }
 }
 
+
 #ifdef _TEST_BITMAP
 int 
 main(int argc, char **argv)
