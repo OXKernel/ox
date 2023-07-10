@@ -1,3 +1,8 @@
+Description:
+
+Small computer systems 32 bit operating system.
+
+Usage:
 
 Setup make_links.sh to point to the absolute path of
 this directory and then run make_links.sh to setup
